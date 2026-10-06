@@ -1,14 +1,14 @@
 """Deribit public API: DVOL (30-day implied vol index) and live option book summaries."""
 import pandas as pd
-from ..http import get_json
+from ..http import get_json, utc
 
 BASE = "https://www.deribit.com/api/v2/public"
 
 
 def dvol_hourly(start, end, currency="BTC"):
     """DVOL close, annualised vol in decimal (0.40 = 40%), indexed by hour (UTC)."""
-    s = int(pd.Timestamp(start, tz="UTC").timestamp() * 1000)
-    e = int(pd.Timestamp(end, tz="UTC").timestamp() * 1000)
+    s = int(utc(start).timestamp() * 1000)
+    e = int(utc(end).timestamp() * 1000)
     rows, cur = [], s
     while cur < e:   # the endpoint returns a limited window per call; page forward
         nxt = min(cur + 30 * 24 * 3600 * 1000, e)

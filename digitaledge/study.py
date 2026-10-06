@@ -4,6 +4,7 @@ arbitrage."""
 import json
 import numpy as np
 import pandas as pd
+from .http import utc
 from . import dataset, scoring, ladder
 from .backtest import trades
 from .volmodels import MODELS, predict
@@ -20,7 +21,7 @@ def prepare(start, end):
     obs["mid"] = (obs["yes_bid"] + obs["yes_ask"]) / 2
     obs = predict(obs, px)
     # evaluate only after the model has enough warm-up history
-    first_day = pd.Timestamp(start, tz="UTC")
+    first_day = utc(start)
     return obs[obs["obs_time"] >= first_day].reset_index(drop=True), px
 
 

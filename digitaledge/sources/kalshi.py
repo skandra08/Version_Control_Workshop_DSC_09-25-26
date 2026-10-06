@@ -1,7 +1,7 @@
 """Kalshi public market data for the hourly BTC above/below ladder (series KXBTCD)."""
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
-from ..http import get_json
+from ..http import get_json, utc
 
 BASE = "https://api.elections.kalshi.com/trade-api/v2"
 
@@ -9,8 +9,8 @@ BASE = "https://api.elections.kalshi.com/trade-api/v2"
 def settled_markets(start, end, series="KXBTCD", min_volume=1):
     """All settled markets in [start, end) closing time, keeping only strikes that traded."""
     out, cursor = [], None
-    s = int(pd.Timestamp(start, tz="UTC").timestamp())
-    e = int(pd.Timestamp(end, tz="UTC").timestamp())
+    s = int(utc(start).timestamp())
+    e = int(utc(end).timestamp())
     while True:
         p = {"series_ticker": series, "status": "settled", "limit": 1000,
              "min_close_ts": s, "max_close_ts": e}

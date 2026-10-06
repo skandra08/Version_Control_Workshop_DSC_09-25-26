@@ -1,6 +1,7 @@
 """Assemble the study dataset: one row per (market, observation time) with the quote,
 spot at that time, and the realised settlement outcome."""
 import pandas as pd
+from .http import utc
 from .sources import coinbase, kalshi, deribit
 
 HORIZONS = (60, 45, 30, 20, 10, 5)   # minutes before close at which we observe the quote
@@ -9,10 +10,10 @@ HORIZONS = (60, 45, 30, 20, 10, 5)   # minutes before close at which we observe 
 def build(start, end, cache_csv=None):
     mk = kalshi.settled_markets(start, end)
     cs = kalshi.candlesticks(mk)
-    spot = coinbase.close_series(pd.Timestamp(start, tz="UTC") - pd.Timedelta(days=30),
-                                 pd.Timestamp(end, tz="UTC") + pd.Timedelta(hours=1))
-    dv = deribit.dvol_hourly(pd.Timestamp(start, tz="UTC") - pd.Timedelta(days=1),
-                             pd.Timestamp(end, tz="UTC") + pd.Timedelta(hours=1))
+    spot = coinbase.close_series(utc(start) - pd.Timedelta(days=30),
+                                 utc(end) + pd.Timedelta(hours=1))
+    dv = deribit.dvol_hourly(utc(start) - pd.Timedelta(days=1),
+                             utc(end) + pd.Timedelta(hours=1))
     rows = []
     close_time = mk.set_index("ticker")["close_time"]
     for h in HORIZONS:

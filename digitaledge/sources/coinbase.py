@@ -1,14 +1,14 @@
 """Coinbase Exchange BTC-USD 1-minute candles (public, 300 bars per request)."""
 import numpy as np
 import pandas as pd
-from ..http import get_json
+from ..http import get_json, utc
 
 URL = "https://api.exchange.coinbase.com/products/{}/candles"
 
 
 def candles_1m(start, end, product="BTC-USD"):
     """Return a DataFrame indexed by UTC minute-open time with columns open/high/low/close/volume."""
-    start, end = pd.Timestamp(start, tz="UTC"), pd.Timestamp(end, tz="UTC")
+    start, end = utc(start), utc(end)
     rows, cur = [], start
     while cur < end:
         nxt = min(cur + pd.Timedelta(minutes=299), end)

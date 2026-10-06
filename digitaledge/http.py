@@ -45,3 +45,10 @@ def get_json(url, params=None, cache=True, retries=12, timeout=30):
             if attempt == retries - 1:
                 raise
             time.sleep(min(2 ** attempt, 60))
+
+
+def utc(x):
+    """Timestamp in UTC whether `x` is naive, a string, or already tz-aware."""
+    import pandas as pd
+    t = pd.Timestamp(x)
+    return t.tz_localize("UTC") if t.tzinfo is None else t.tz_convert("UTC")
