@@ -1,43 +1,61 @@
-# quantlab
+# Market-Making Simulator with Hawkes Order Flow
 
-A small, bias-aware backtesting and strategy-validation framework in Python. The focus is
-not on finding a magic strategy but on **not fooling yourself**: look-ahead protection,
-transaction costs, walk-forward validation, and multiple-testing-adjusted Sharpe ratios.
+Event-driven simulator for studying **passive market making under adverse selection**.
+Order flow is a bivariate **Hawkes process** (self/cross-exciting buys and sells) with
+permanent price impact, so bursts of flow are informative and quoting into them loses
+money. On top of it: **Avellaneda–Stoikov** inventory-aware quoting, and an
+**intensity-aware extension** that widens the side most likely to be picked off.
 
-## Features
-- **Vectorised backtest engine** with enforced one-bar signal lag and per-turnover costs
-- **Signals**: cross-sectional momentum and mean reversion (dollar-neutral)
-- **Walk-forward validation**: parameters chosen in-sample, traded strictly out-of-sample
-- **Metrics**: Sharpe, drawdown, Calmar, turnover, Probabilistic Sharpe and
-  Deflated Sharpe (Bailey & López de Prado) to penalise parameter mining
-- **Reproducible synthetic data** with a tunable autocorrelation edge, so tests can assert
-  that the framework detects real signal and rejects noise
-- Pytest suite + GitHub Actions CI
+Also included: `quantlab`, a bias-aware backtesting/validation toolkit (look-ahead-safe
+engine, walk-forward, Deflated Sharpe) in the same repo.
 
-## Quick start
+## Why it's built this way
+- **Common random numbers.** Order flow does not depend on our quotes, so each seed's
+  path is generated once and every strategy trades the *same* path. Strategy
+  comparisons use paired differences, which is far lower-variance than independent runs.
+- **Validated against theory.** Tests check Hawkes mean intensity = mu/(1-n), overdispersed
+  inter-arrivals (clustering), and that simulated fill rates match the analytic
+  Poisson `mu * exp(-k*d)` when excitation and impact are switched off.
+- **Adverse selection is measured, not assumed:** per-fill *markout* (mid 10s later vs
+  fill price) is reported alongside P&L.
+- **Held-out evaluation.** The one tuned parameter (`widen`) was chosen on seeds 0-299;
+  the demo reports seeds 10000+.
+
+## Run it
 ```bash
 pip install -e ".[dev]"
-pytest -q
-python examples/run_demo.py
+pytest -q                        # 16 tests
+python examples/run_mm_demo.py   # table + examples/mm_results.png
 ```
 
-## Demo result (walk-forward momentum, 12 assets, 3000 days, 5 bps costs)
-| Data | OOS Sharpe | Max DD | PSR | Deflated Sharpe |
-|---|---|---|---|---|
-| Trending (AR phi=0.1) | 0.49 | -21.6% | 0.94 | 0.29 |
-| Pure noise | -0.30 | -35.0% | 0.17 | 0.08 |
+## Results (400 held-out 10-minute paths, units = ticks)
+| Strategy | Mean P&L | P&L sd | Sharpe | Inventory sd | Fills | Markout/fill | Paired t vs A-S |
+|---|---|---|---|---|---|---|---|
+| Fixed spread (2 ticks) | 514.9 | 169.6 | 3.04 | 5.30 | 409 | 1.27 | +4.0 |
+| Avellaneda-Stoikov | 483.2 | 55.1 | 8.77 | 1.51 | 371 | 1.30 | - |
+| Hawkes-aware A-S | 511.8 | 56.4 | 9.07 | 1.37 | 308 | 1.66 | +25.2 |
 
-The edge looks significant under PSR but not after deflating for the 8 parameter
-combinations tried, which is the point of the exercise.
+- Inventory control cuts P&L volatility ~3x for similar P&L (fixed quotes just carry risk).
+- Widening against excess flow intensity reduces adverse selection (markout +28%) and adds
+  ~28 ticks/path over plain A-S, with fewer but better fills.
+- A larger widening factor lowers adverse selection further but gives up too much volume
+  (swept 0.5-4); the P&L-optimal setting is small.
 
-## Design notes
-- A weight decided at close `t` earns the return `t -> t+1`. `tests/` includes a regression
-  test showing that a naive same-bar pairing yields an absurd Sharpe, while the engine does not.
-- Signals only use past data, so computing them on the full history is leak-free; the
-  walk-forward layer is where selection leakage is controlled.
+## Limitations (what I'd say in an interview)
+- Stylised flow: depth is exponential, impact is a constant permanent shift, no queue
+  position, latency, fees/rebates, or multi-level book.
+- Excitation is read exactly from the generator; a live system would estimate it from
+  recent trades (an EWMA of signed flow), adding noise.
+- Results show the mechanism, not a tradeable P&L figure.
+
+## Layout
+```
+mmsim/       flow.py (Hawkes + impact), strategies.py, engine.py
+quantlab/    backtesting + validation toolkit
+tests/       16 tests   examples/   demos and plots
+```
 
 ## Roadmap
-- [ ] Real data loader (yfinance/CSV) and S&P universe survivorship-bias discussion
-- [ ] Combinatorial purged cross-validation
-- [ ] Volatility targeting and mean-variance portfolio construction
-- [ ] Limit order book / market-making simulator module
+- [ ] Fit Hawkes parameters to real L2/trade data (MLE) and estimate intensity online
+- [ ] Queue-position model and latency
+- [ ] Learn quoting with RL / dynamic programming and compare to A-S

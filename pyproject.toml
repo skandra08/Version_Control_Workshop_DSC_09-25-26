@@ -9,7 +9,7 @@ dependencies = ["numpy", "pandas"]
 dev = ["pytest", "matplotlib"]
 
 [tool.setuptools]
-packages = ["quantlab"]
+packages = ["quantlab", "mmsim"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
